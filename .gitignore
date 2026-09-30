@@ -1,0 +1,10 @@
+node_modules/
+dist/
+data/
+*.log
+.env
+
+# arquivos de origem soltos (use `npm run import` para organizá-los em data/)
+/*.mp3
+/*.lrc
+/*.txt
