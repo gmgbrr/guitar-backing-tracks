@@ -1,4 +1,6 @@
-# Backing Tracks
+# guitar-backing-tracks
+
+Ferramenta para customizar faixas de áudio junto com tablaturas e letras de músicas.
 
 Player web com stems separados (voz, bateria, baixo, outros), volume individual por faixa e letra sincronizada (LRC).
 
