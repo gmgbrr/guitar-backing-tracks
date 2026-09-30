@@ -253,3 +253,10 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 4p
   .upload-fields { grid-template-columns: 1fr; }
   .upload-files .size { display: none; }
 }
+
+/* botão "abrir no YouTube" na barra do vídeo */
+.video-actions .youtube-link {
+  display: inline-flex; align-items: center; justify-content: center; height: 31px; padding: 0 10px;
+  border: 1px solid var(--border); background: var(--panel-2); border-radius: 6px; transition: border-color 0.15s;
+}
+.video-actions .youtube-link:hover, .video-actions .youtube-link:focus-visible { border-color: #ff0000; outline: none; }

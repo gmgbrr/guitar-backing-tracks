@@ -207,6 +207,24 @@ function VideoPlayer({
           Vídeo começa em <strong>{formatOffset(video.offsetSec)}</strong> da track
         </span>
         <div className="video-actions">
+          <a
+            className="youtube-link"
+            href={`https://www.youtube.com/watch?v=${video.youtubeId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir o vídeo original no YouTube (no ponto atual da música)"
+            aria-label="Abrir no YouTube"
+            onClick={(e) => {
+              // Abre no mesmo ponto da música; antes do início do vídeo, abre do começo.
+              const t = player ? Math.max(0, Math.floor(player.getTime() - video.offsetSec)) : 0;
+              e.currentTarget.href = `https://www.youtube.com/watch?v=${video.youtubeId}${t > 0 ? `&t=${t}s` : ''}`;
+            }}
+          >
+            <svg viewBox="0 0 28 20" width="24" height="17" aria-hidden="true">
+              <rect width="28" height="20" rx="5" fill="#ff0000" />
+              <path d="M11 5.5v9l8-4.5z" fill="#fff" />
+            </svg>
+          </a>
           <button className={adjusting ? 'on' : ''} onClick={() => setAdjusting((a) => !a)} disabled={!sync}>
             Ajustar sincronia
           </button>
