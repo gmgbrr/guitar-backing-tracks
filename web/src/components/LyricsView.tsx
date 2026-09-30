@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { StemPlayer } from '../audio/StemPlayer';
 import { useCurrentTime } from '../audio/useStemPlayer';
-import { activeLineIndex, type LyricLine } from '../lyrics/parseLrc';
+import type { LyricLine } from '../lyrics/parseLrc';
+import { activeLineIndex } from '../sync/timeline';
 
 interface Props {
   player: StemPlayer | null;

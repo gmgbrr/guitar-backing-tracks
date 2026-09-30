@@ -1,21 +1,31 @@
-import type { SongDetail, SongSummary } from '@backing-tracks/shared';
+import type { MetronomeRecord, SongDetail, SongSummary, VideoRecord } from '@backing-tracks/shared';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fetchSong, fetchSongs, fetchText } from '../api';
 import { useStemPlayer } from '../audio/useStemPlayer';
 import { LyricsView } from '../components/LyricsView';
+import { MetronomePanel } from '../components/MetronomePanel';
 import { SeekBar } from '../components/SeekBar';
 import { StemMixer } from '../components/StemMixer';
 import { Transport } from '../components/Transport';
+import { VideoView } from '../components/VideoView';
 import { parseLrc, type LyricLine } from '../lyrics/parseLrc';
 
 const KEY_SKIP_SECONDS = 5;
+
+type View = 'lyrics' | 'video';
+
+const defaultMetronome = (s: SongDetail): MetronomeRecord =>
+  s.metronome ?? { bpm: s.bpm ?? 120, offsetSec: 0, beatsPerBar: 4 };
 
 export function Player() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const [song, setSong] = useState<SongDetail | null>(null);
   const [lines, setLines] = useState<LyricLine[] | null>(null);
+  const [video, setVideo] = useState<VideoRecord | null>(null);
+  const [view, setView] = useState<View>('lyrics');
+  const [savedMetronome, setSavedMetronome] = useState<MetronomeRecord | null>(null);
   const [allSongs, setAllSongs] = useState<SongSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,11 +33,15 @@ export function Player() {
     let cancelled = false;
     setSong(null);
     setLines(null);
+    setVideo(null);
     setError(null);
     fetchSong(id)
       .then(async (s) => {
         if (cancelled) return;
         setSong(s);
+        setSavedMetronome(defaultMetronome(s));
+        setVideo(s.video ?? null);
+        setView(s.video || !s.lyricsUrl ? 'video' : 'lyrics');
         if (s.lyricsUrl) {
           const text = await fetchText(s.lyricsUrl);
           if (!cancelled) setLines(parseLrc(text).lines);
@@ -43,7 +57,12 @@ export function Player() {
     fetchSongs().then(setAllSongs, () => {});
   }, []);
 
-  const { player, load, playing, duration, stems, masterVolume } = useStemPlayer(song?.stems);
+  const { player, load, playing, duration, stems, masterVolume, metronome } = useStemPlayer(song?.stems);
+
+  // Aplica a grade salva da música quando a engine fica pronta.
+  useEffect(() => {
+    if (player && song) player.updateMetronome(defaultMetronome(song));
+  }, [player, song]);
 
   // Atalhos de teclado
   useEffect(() => {
@@ -51,7 +70,16 @@ export function Player() {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' && (target as HTMLInputElement).type !== 'range') return;
-      if (e.code === 'Space') {
+      // Evita que Espaço/Enter também "cliquem" no último botão focado.
+      if (target.tagName === 'BUTTON') target.blur();
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.code === 'KeyV') {
+        setView((v) => (v === 'lyrics' ? 'video' : 'lyrics'));
+      } else if (e.code === 'KeyM') {
+        player.updateMetronome({ enabled: !player.getSnapshot().metronome.enabled });
+      } else if (e.code === 'KeyB') {
+        player.alignMetronomeDownbeat();
+      } else if (e.code === 'Space') {
         e.preventDefault();
         player.toggle();
       } else if (e.code === 'ArrowLeft') {
@@ -103,9 +131,36 @@ export function Player() {
         ) : load.status === 'error' ? (
           <p className="error">{load.message}</p>
         ) : (
-          <LyricsView player={player} playing={playing} lines={lines} />
+          <section className="main-panel">
+            <nav className="view-tabs">
+              <button className={view === 'video' ? 'on' : ''} onClick={() => setView('video')} title="Atalho: V">
+                Vídeo
+              </button>
+              <button className={view === 'lyrics' ? 'on' : ''} onClick={() => setView('lyrics')} title="Atalho: V">
+                Letra
+              </button>
+            </nav>
+            {/* O vídeo fica montado (só escondido) para não recarregar nem perder a sincronia. */}
+            <div className={`view-pane ${view === 'video' ? '' : 'hidden'}`}>
+              <VideoView songId={id} player={player} playing={playing} video={video} onChange={setVideo} />
+            </div>
+            <div className={`view-pane ${view === 'lyrics' ? '' : 'hidden'}`}>
+              <LyricsView player={player} playing={playing} lines={lines} />
+            </div>
+          </section>
         )}
-        <StemMixer player={player} stems={stems} masterVolume={masterVolume} />
+        <StemMixer player={player} stems={stems} masterVolume={masterVolume}>
+          {savedMetronome && (
+            <MetronomePanel
+              songId={id}
+              player={player}
+              playing={playing}
+              state={metronome}
+              saved={savedMetronome}
+              onSaved={setSavedMetronome}
+            />
+          )}
+        </StemMixer>
       </div>
 
       <footer className="player-footer">

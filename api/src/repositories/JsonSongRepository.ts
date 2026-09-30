@@ -23,10 +23,25 @@ export class JsonSongRepository implements SongRepository {
   async get(id: string): Promise<SongRecord | undefined> {
     if (!/^[a-z0-9-]+$/.test(id)) return undefined;
     try {
-      const raw = await fs.readFile(path.join(this.songsDir, id, 'song.json'), 'utf8');
+      const raw = await fs.readFile(this.fileOf(id), 'utf8');
       return JSON.parse(raw) as SongRecord;
     } catch {
       return undefined;
     }
+  }
+
+  async update(id: string, patch: Partial<Omit<SongRecord, 'id'>>): Promise<SongRecord | undefined> {
+    const song = await this.get(id);
+    if (!song) return undefined;
+    const updated = { ...song, ...patch, id };
+    // Grava num temporário e renomeia, para não corromper o song.json se o processo cair no meio.
+    const tmp = `${this.fileOf(id)}.tmp`;
+    await fs.writeFile(tmp, JSON.stringify(updated, null, 2) + '\n');
+    await fs.rename(tmp, this.fileOf(id));
+    return updated;
+  }
+
+  private fileOf(id: string) {
+    return path.join(this.songsDir, id, 'song.json');
   }
 }

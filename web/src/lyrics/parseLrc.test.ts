@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeLineIndex, parseLrc } from './parseLrc';
+import { parseLrc } from './parseLrc';
 
 describe('parseLrc', () => {
   it('lê metadados e linhas com timestamp', () => {
@@ -27,15 +27,4 @@ describe('parseLrc', () => {
       { time: 9.5, text: 'a' },
     ]);
   });
-});
-
-describe('activeLineIndex', () => {
-  const lines = [0, 5, 10].map((time) => ({ time, text: '' }));
-  it.each([
-    [-1, -1],
-    [0, 0],
-    [4.99, 0],
-    [5, 1],
-    [100, 2],
-  ])('t=%s → %s', (t, idx) => expect(activeLineIndex(lines, t)).toBe(idx));
 });

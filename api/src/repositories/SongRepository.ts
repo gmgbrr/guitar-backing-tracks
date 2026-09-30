@@ -4,4 +4,6 @@ import type { SongRecord } from '@backing-tracks/shared';
 export interface SongRepository {
   list(): Promise<SongRecord[]>;
   get(id: string): Promise<SongRecord | undefined>;
+  /** Grava campos de nível superior do registro. Retorna o registro atualizado. */
+  update(id: string, patch: Partial<Omit<SongRecord, 'id'>>): Promise<SongRecord | undefined>;
 }

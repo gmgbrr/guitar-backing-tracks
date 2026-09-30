@@ -1,9 +1,11 @@
+import type { ReactNode } from 'react';
 import type { StemPlayer, StemState } from '../audio/StemPlayer';
 
 interface Props {
   player: StemPlayer | null;
   stems: StemState[];
   masterVolume: number;
+  children?: ReactNode;
 }
 
 const LABELS: Record<string, string> = {
@@ -15,7 +17,7 @@ const LABELS: Record<string, string> = {
   other: 'Outros',
 };
 
-export function StemMixer({ player, stems, masterVolume }: Props) {
+export function StemMixer({ player, stems, masterVolume, children }: Props) {
   const anySolo = stems.some((s) => s.solo);
   return (
     <section className="mixer">
@@ -77,6 +79,8 @@ export function StemMixer({ player, stems, masterVolume }: Props) {
         />
         <span className="pct">{Math.round(masterVolume * 100)}%</span>
       </div>
+
+      {children}
     </section>
   );
 }

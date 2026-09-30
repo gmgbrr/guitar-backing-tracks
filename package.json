@@ -11,14 +11,15 @@
     "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w api\" \"npm run dev -w web\"",
     "build": "npm run build -w web",
     "start": "npm run start -w api",
-    "test": "npm run test -w web",
-    "typecheck": "tsc -p api --noEmit && tsc -p web --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc -p api --noEmit && tsc -p web --noEmit && tsc -p scripts --noEmit",
     "import": "tsx scripts/import-song.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "concurrently": "^9.1.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.9"
   }
 }

@@ -8,11 +8,29 @@ export interface SongRecord {
   durationSec: number;
   stems: StemRecord[];
   lyricsFile?: string;
+  metronome?: MetronomeRecord;
+  video?: VideoRecord;
 }
 
 export interface StemRecord {
   name: string;
   file: string;
+}
+
+/**
+ * Vídeo do YouTube exibido junto com a track (ex.: tablatura rolando).
+ * offsetSec = tempo da track em que o vídeo está no segundo 0 (pode ser negativo).
+ */
+export interface VideoRecord {
+  youtubeId: string;
+  offsetSec: number;
+}
+
+/** Grade do metrônomo da música: batida n em offsetSec + n * 60/bpm. */
+export interface MetronomeRecord {
+  bpm: number;
+  offsetSec: number;
+  beatsPerBar: number;
 }
 
 /** Item da lista de músicas retornado por GET /api/songs. */
@@ -25,6 +43,7 @@ export interface SongSummary {
   durationSec: number;
   stemNames: string[];
   hasLyrics: boolean;
+  hasVideo: boolean;
 }
 
 /** Detalhe retornado por GET /api/songs/:id, com URLs de mídia já resolvidas. */

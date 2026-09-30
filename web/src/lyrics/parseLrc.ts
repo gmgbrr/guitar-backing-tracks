@@ -1,3 +1,5 @@
+export { activeLineIndex } from '../sync/timeline';
+
 export interface LyricLine {
   time: number; // segundos
   text: string;
@@ -43,21 +45,4 @@ export function parseLrc(source: string): ParsedLrc {
   for (const l of lines) l.time = Math.max(0, l.time - offsetSec);
   lines.sort((a, b) => a.time - b.time);
   return { meta, lines };
-}
-
-/** Índice da linha ativa no tempo `t` (última com time <= t), ou -1 antes da primeira. */
-export function activeLineIndex(lines: LyricLine[], t: number): number {
-  let lo = 0;
-  let hi = lines.length - 1;
-  let ans = -1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    if (lines[mid].time <= t) {
-      ans = mid;
-      lo = mid + 1;
-    } else {
-      hi = mid - 1;
-    }
-  }
-  return ans;
 }

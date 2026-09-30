@@ -6,6 +6,8 @@
  * AudioBufferSourceNode só toca uma vez: pause/seek descartam os sources e play cria novos.
  */
 
+import { Metronome, type MetronomeState } from './Metronome';
+
 export interface StemState {
   name: string;
   volume: number; // 0..1.5
@@ -18,6 +20,7 @@ export interface PlayerSnapshot {
   duration: number;
   masterVolume: number;
   stems: StemState[];
+  metronome: MetronomeState;
 }
 
 interface Stem extends StemState {
@@ -37,7 +40,14 @@ export class StemPlayer {
   private offset = 0; // posição (s) quando pausado
   private startedAt = 0; // ctx.currentTime equivalente à posição 0
   private listeners = new Set<() => void>();
-  private snapshot: PlayerSnapshot = { playing: false, duration: 0, masterVolume: 1, stems: [] };
+  private readonly metronome = new Metronome(this.ctx, () => ({ playing: this.playing, startedAt: this.startedAt }));
+  private snapshot: PlayerSnapshot = {
+    playing: false,
+    duration: 0,
+    masterVolume: 1,
+    stems: [],
+    metronome: this.metronome.getState(),
+  };
 
   constructor() {
     this.master.connect(this.ctx.destination);
@@ -98,6 +108,7 @@ export class StemPlayer {
       this.emit();
     };
     this.playing = true;
+    this.metronome.start();
     this.emit();
   }
 
@@ -149,6 +160,21 @@ export class StemPlayer {
     this.emit(false);
   }
 
+  updateMetronome(patch: Partial<MetronomeState>) {
+    this.metronome.update(patch);
+    this.emit();
+  }
+
+  /** Alinha a grade do metrônomo para que o tempo atual seja uma batida "1". */
+  alignMetronomeDownbeat() {
+    this.updateMetronome({ offsetSec: this.getTime() });
+  }
+
+  /** Batida do metrônomo no tempo informado (0 = batida 1 do compasso). */
+  metronomeBeatAt(songTime: number) {
+    return this.metronome.beatAt(songTime);
+  }
+
   resetMix() {
     for (const s of this.stems) Object.assign(s, { volume: 1, muted: false, solo: false });
     this.applyGains();
@@ -164,6 +190,7 @@ export class StemPlayer {
 
   dispose() {
     this.stopSources();
+    this.metronome.dispose();
     this.listeners.clear();
     void this.ctx.close();
   }
@@ -185,6 +212,7 @@ export class StemPlayer {
   }
 
   private stopSources() {
+    this.metronome.stop();
     for (const s of this.stems) {
       if (!s.source) continue;
       s.source.onended = null;
@@ -204,6 +232,7 @@ export class StemPlayer {
         playing: this.playing,
         duration: this.duration,
         masterVolume: this.snapshot.masterVolume,
+        metronome: this.metronome.getState(),
         stems: this.stems.map(({ name, volume, muted, solo }) => ({ name, volume, muted, solo })),
       };
     }

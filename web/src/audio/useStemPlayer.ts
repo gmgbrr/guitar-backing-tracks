@@ -1,7 +1,13 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { StemPlayer, type PlayerSnapshot } from './StemPlayer';
 
-const EMPTY: PlayerSnapshot = { playing: false, duration: 0, masterVolume: 1, stems: [] };
+const EMPTY: PlayerSnapshot = {
+  playing: false,
+  duration: 0,
+  masterVolume: 1,
+  stems: [],
+  metronome: { enabled: false, volume: 0.7, bpm: 120, offsetSec: 0, beatsPerBar: 4 },
+};
 const noopSubscribe = () => () => {};
 
 export type LoadState =
