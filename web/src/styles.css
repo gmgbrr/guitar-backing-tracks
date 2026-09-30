@@ -259,4 +259,6 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 4p
   display: inline-flex; align-items: center; justify-content: center; height: 31px; padding: 0 10px;
   border: 1px solid var(--border); background: var(--panel-2); border-radius: 6px; transition: border-color 0.15s;
 }
-.video-actions .youtube-link:hover, .video-actions .youtube-link:focus-visible { border-color: #ff0000; outline: none; }
+.video-actions .youtube-link:hover, .video-actions .youtube-link:focus-visible { border-color: var(--accent); outline: none; }
+.youtube-link .yt-bg { fill: var(--accent); }
+.youtube-link .yt-play { fill: #111; }

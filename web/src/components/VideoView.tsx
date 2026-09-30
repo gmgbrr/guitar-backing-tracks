@@ -221,8 +221,8 @@ function VideoPlayer({
             }}
           >
             <svg viewBox="0 0 28 20" width="24" height="17" aria-hidden="true">
-              <rect width="28" height="20" rx="5" fill="#ff0000" />
-              <path d="M11 5.5v9l8-4.5z" fill="#fff" />
+              <rect className="yt-bg" width="28" height="20" rx="5" />
+              <path className="yt-play" d="M11 5.5v9l8-4.5z" />
             </svg>
           </a>
           <button className={adjusting ? 'on' : ''} onClick={() => setAdjusting((a) => !a)} disabled={!sync}>
