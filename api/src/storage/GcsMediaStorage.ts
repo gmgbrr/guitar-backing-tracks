@@ -1,5 +1,6 @@
 import type { Bucket } from '@google-cloud/storage';
-import type { MediaStorage } from './MediaStorage.js';
+import type { UploadField } from '@backing-tracks/shared';
+import type { MediaStorage, UploadTarget } from './MediaStorage.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -48,4 +49,50 @@ export class GcsMediaStorage implements MediaStorage {
       files.map((f) => this.bucket.file(`${this.prefix}/${songId}/${f}`).delete({ ignoreNotFound: true })),
     );
   }
+
+  // ---- área temporária: uploads/<uploadId>/<campo> (regra de ciclo de vida apaga após 1 dia) ----
+
+  private staged(uploadId: string, field: UploadField) {
+    return this.bucket.file(`uploads/${uploadId}/${field}`);
+  }
+
+  async createUploadTarget(uploadId: string, field: UploadField, maxBytes: number): Promise<UploadTarget> {
+    // Content-Type e faixa de tamanho fazem parte da assinatura: o GCS recusa o PUT se não baterem.
+    const headers = {
+      'Content-Type': 'application/octet-stream',
+      'x-goog-content-length-range': `1,${maxBytes}`,
+    };
+    const [url] = await this.staged(uploadId, field).getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: Date.now() + UPLOAD_URL_TTL_MS,
+      contentType: headers['Content-Type'],
+      extensionHeaders: { 'x-goog-content-length-range': headers['x-goog-content-length-range'] },
+    });
+    return { url, headers };
+  }
+
+  async readStaged(uploadId: string, field: UploadField, maxBytes: number): Promise<Buffer | null> {
+    const file = this.staged(uploadId, field);
+    try {
+      const [meta] = await file.getMetadata();
+      if (Number(meta.size) > maxBytes) throw new Error(`Arquivo enviado maior que o permitido: ${field}`);
+      const [data] = await file.download();
+      return data;
+    } catch (err) {
+      // Não enviado, já consumido por outra finalização ou apagado pela limpeza automática.
+      if (isNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  async clearStaged(uploadId: string): Promise<void> {
+    const [files] = await this.bucket.getFiles({ prefix: `uploads/${uploadId}/` });
+    await Promise.all(files.map((f) => f.delete({ ignoreNotFound: true })));
+  }
 }
+
+/** Validade dos links de envio. */
+const UPLOAD_URL_TTL_MS = 15 * 60_000;
+
+const isNotFound = (err: unknown) => (err as { code?: number }).code === 404;

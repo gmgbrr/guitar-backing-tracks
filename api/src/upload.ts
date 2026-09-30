@@ -1,29 +1,26 @@
 import { parseBuffer } from 'music-metadata';
-import { songId, STEM_LABELS, STEM_NAMES, UPLOAD_LIMITS, type SongRecord, type StemName } from '@backing-tracks/shared';
+import {
+  isUploadField,
+  maxBytesFor,
+  songId,
+  STEM_LABELS,
+  STEM_NAMES,
+  UPLOAD_LIMITS,
+  type SongRecord,
+  type StemName,
+  type UploadField,
+} from '@backing-tracks/shared';
 import { HttpError } from './security.js';
 import { isValidSongId } from './repositories/SongRepository.js';
 
-export interface IncomingFile {
-  buffer: Buffer;
-  size: number;
-  originalname: string;
-}
-
-/** Arquivos por campo do formulário multipart (formato do multer .fields()). */
-export type IncomingFiles = Partial<Record<string, IncomingFile[]>>;
+/** Conteúdo recebido de cada campo (lido da área temporária de upload). */
+export type IncomingFiles = Partial<Record<UploadField, Buffer>>;
 
 export interface ValidatedUpload {
   record: SongRecord;
   /** Arquivos a gravar, com nome e tipo definidos pelo servidor. */
   files: { name: string; data: Buffer; contentType: string }[];
 }
-
-/** Campos de arquivo aceitos no multipart; qualquer outro é rejeitado pelo multer. */
-export const UPLOAD_FILE_FIELDS = [
-  ...STEM_NAMES.map((s) => ({ name: `stem_${s}`, maxCount: 1 })),
-  { name: 'lyrics', maxCount: 1 },
-  { name: 'cover', maxCount: 1 },
-];
 
 const bad = (msg: string) => new HttpError(400, msg);
 
@@ -113,11 +110,17 @@ export function validateLyrics(data: Buffer): Buffer {
 
 // ---------- montagem ----------
 
-/**
- * Valida campos e arquivos do upload e monta o registro da música.
- * Tudo que vai para o banco/bucket (id, nomes, tipos, duração) é derivado aqui no servidor.
- */
-export async function validateUpload(body: Record<string, unknown>, files: IncomingFiles): Promise<ValidatedUpload> {
+export interface SongFields {
+  id: string;
+  artist: string;
+  title: string;
+  key?: string;
+  bpm?: number;
+  youtubeId?: string;
+}
+
+/** Valida os dados digitados da música e gera o id (slug). */
+export function validateSongFields(body: Record<string, unknown>): SongFields {
   const artist = cleanText(body.artist, 'Artista', true)!;
   const title = cleanText(body.title, 'Título', true)!;
 
@@ -125,31 +128,63 @@ export async function validateUpload(body: Record<string, unknown>, files: Incom
   if (key && !KEY_RE.test(key)) throw bad('Tom inválido (ex.: E minor, F# major, Bb).');
 
   let bpm: number | undefined;
-  if (body.bpm !== undefined && body.bpm !== '') {
+  if (body.bpm !== undefined && body.bpm !== '' && body.bpm !== null) {
     bpm = Number(body.bpm);
-    if (!Number.isFinite(bpm) || bpm < 20 || bpm > 300) throw bad('BPM deve estar entre 20 e 300.');
+    if ((typeof body.bpm !== 'number' && typeof body.bpm !== 'string') || !Number.isFinite(bpm) || bpm < 20 || bpm > 300) {
+      throw bad('BPM deve estar entre 20 e 300.');
+    }
     bpm = Math.round(bpm * 10) / 10;
   }
 
   let youtubeId: string | undefined;
-  if (body.youtubeId !== undefined && body.youtubeId !== '') {
+  if (body.youtubeId !== undefined && body.youtubeId !== '' && body.youtubeId !== null) {
     if (typeof body.youtubeId !== 'string' || !/^[\w-]{11}$/.test(body.youtubeId)) throw bad('Link do YouTube inválido.');
     youtubeId = body.youtubeId;
   }
 
   const id = songId(artist, title);
   if (!isValidSongId(id)) throw bad('Artista e título precisam conter letras ou números.');
+  return { id, artist, title, key, bpm, youtubeId };
+}
+
+/** Valida a lista de arquivos declarada no pedido de upload (antes do envio). */
+export function validateFileList(files: unknown): { field: UploadField; size: number }[] {
+  if (!Array.isArray(files) || files.length === 0 || files.length > STEM_NAMES.length + 2) {
+    throw bad('Lista de arquivos inválida.');
+  }
+  const seen = new Set<string>();
+  const out = files.map((f: unknown) => {
+    const { field, size } = (f ?? {}) as { field?: unknown; size?: unknown };
+    if (!isUploadField(field) || seen.has(field)) throw bad('Lista de arquivos inválida.');
+    seen.add(field);
+    if (typeof size !== 'number' || !Number.isInteger(size) || size <= 0) throw bad('Tamanho de arquivo inválido.');
+    if (size > maxBytesFor(field)) throw bad(`${fieldLabel(field)}: arquivo grande demais.`);
+    return { field, size };
+  });
+  if (!out.some((f) => f.field.startsWith('stem_'))) throw bad('Envie pelo menos um stem de áudio.');
+  return out;
+}
+
+const fieldLabel = (f: UploadField) =>
+  f === 'lyrics' ? 'Letra' : f === 'cover' ? 'Capa' : STEM_LABELS[f.slice(5) as StemName];
+
+/**
+ * Valida os arquivos já recebidos e monta o registro da música.
+ * Tudo que vai para o banco/bucket (id, nomes, tipos, duração) é derivado aqui no servidor.
+ */
+export async function validateUpload(body: Record<string, unknown>, files: IncomingFiles): Promise<ValidatedUpload> {
+  const { id, artist, title, key, bpm, youtubeId } = validateSongFields(body);
 
   const out: ValidatedUpload['files'] = [];
   const stems: SongRecord['stems'] = [];
   const durations: number[] = [];
   for (const stem of STEM_NAMES) {
-    const file = files[`stem_${stem}`]?.[0];
-    if (!file) continue;
-    if (file.size > UPLOAD_LIMITS.stemMaxBytes) throw bad(`${stemLabel(stem)}: arquivo grande demais.`);
-    const info = await inspectAudio(file.buffer, stemLabel(stem));
+    const data = files[`stem_${stem}`];
+    if (!data) continue;
+    if (data.length > UPLOAD_LIMITS.stemMaxBytes) throw bad(`${stemLabel(stem)}: arquivo grande demais.`);
+    const info = await inspectAudio(data, stemLabel(stem));
     const name = `${stem}.${info.ext}`;
-    out.push({ name, data: file.buffer, contentType: info.contentType });
+    out.push({ name, data, contentType: info.contentType });
     stems.push({ name: stem, file: name });
     durations.push(info.duration);
   }
@@ -160,20 +195,20 @@ export async function validateUpload(body: Record<string, unknown>, files: Incom
   }
 
   let lyricsFile: string | undefined;
-  const lyrics = files.lyrics?.[0];
+  const lyrics = files.lyrics;
   if (lyrics) {
-    out.push({ name: 'lyrics.lrc', data: validateLyrics(lyrics.buffer), contentType: 'text/plain; charset=utf-8' });
+    out.push({ name: 'lyrics.lrc', data: validateLyrics(lyrics), contentType: 'text/plain; charset=utf-8' });
     lyricsFile = 'lyrics.lrc';
   }
 
   let coverFile: string | undefined;
-  const cover = files.cover?.[0];
+  const cover = files.cover;
   if (cover) {
-    if (cover.size > UPLOAD_LIMITS.coverMaxBytes) throw bad('Capa: imagem grande demais.');
-    const img = detectImage(cover.buffer);
+    if (cover.length > UPLOAD_LIMITS.coverMaxBytes) throw bad('Capa: imagem grande demais.');
+    const img = detectImage(cover);
     if (!img) throw bad('Capa: envie uma imagem JPG, PNG ou WebP.');
     coverFile = `cover.${img.ext}`;
-    out.push({ name: coverFile, data: cover.buffer, contentType: img.contentType });
+    out.push({ name: coverFile, data: cover, contentType: img.contentType });
   }
 
   const record: SongRecord = {

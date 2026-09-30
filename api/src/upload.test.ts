@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanText, detectImage, validateLyrics, validateUpload, type IncomingFiles } from './upload';
+import { cleanText, detectImage, validateFileList, validateLyrics, validateUpload, type IncomingFiles } from './upload';
 
 /** WAV PCM mono 8 kHz 8-bit de silêncio com a duração pedida. */
 function wav(seconds: number): Buffer {
@@ -22,7 +22,7 @@ function wav(seconds: number): Buffer {
   return b;
 }
 
-const file = (buffer: Buffer, originalname = 'x') => [{ buffer, size: buffer.length, originalname }];
+const file = (buffer: Buffer, _originalname = 'x') => buffer;
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 const LRC = Buffer.from('[ar: Teste]\n[00:01.00]primeira linha\n[00:03.50]segunda linha\n', 'utf8');
 
@@ -120,5 +120,19 @@ describe('validateUpload', () => {
 
   it('rejeita capa que não é imagem', async () => {
     await expect(validateUpload(base, { stem_bass: file(wav(6)), cover: file(Buffer.from('<svg/>')) })).rejects.toThrow(/Capa/);
+  });
+});
+
+describe('validateFileList (pedido de upload)', () => {
+  it('aceita a lista e rejeita campos desconhecidos, repetidos e tamanhos inválidos', () => {
+    expect(validateFileList([{ field: 'stem_bass', size: 10 }, { field: 'cover', size: 5 }])).toHaveLength(2);
+    expect(() => validateFileList([{ field: 'hack', size: 10 }])).toThrow(/inválida/);
+    expect(() => validateFileList([{ field: 'stem_bass', size: 1 }, { field: 'stem_bass', size: 1 }])).toThrow(/inválida/);
+    expect(() => validateFileList([{ field: 'stem_bass', size: -1 }])).toThrow(/Tamanho/);
+    expect(() => validateFileList([{ field: 'stem_bass', size: 1.5 }])).toThrow(/Tamanho/);
+    expect(() => validateFileList([{ field: 'stem_bass', size: 41 * 1024 * 1024 }])).toThrow(/grande demais/);
+    expect(() => validateFileList([{ field: 'cover', size: 10 }])).toThrow(/pelo menos um stem/);
+    expect(() => validateFileList('x')).toThrow(/inválida/);
+    expect(() => validateFileList([])).toThrow(/inválida/);
   });
 });

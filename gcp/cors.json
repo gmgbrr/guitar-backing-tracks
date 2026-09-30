@@ -1,8 +1,13 @@
 [
   {
-    "origin": ["http://localhost:5173", "http://localhost:3001"],
-    "method": ["GET", "HEAD"],
-    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges"],
+    "origin": [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:3001",
+      "https://backing-tracks-251094340671.us-east1.run.app"
+    ],
+    "method": ["GET", "HEAD", "PUT"],
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "x-goog-content-length-range"],
     "maxAgeSeconds": 3600
   }
 ]

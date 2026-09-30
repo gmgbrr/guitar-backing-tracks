@@ -6,6 +6,7 @@ import {
   STEM_NAMES,
   UPLOAD_LIMITS,
   type FileRole,
+  type UploadField,
 } from '@backing-tracks/shared';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -115,20 +116,21 @@ export function UploadSong() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (problems.length > 0 || progress !== null) return;
-    const form = new FormData();
-    form.set('artist', artist.trim());
-    form.set('title', title.trim());
-    if (musicKey.trim()) form.set('key', musicKey.trim());
-    if (bpm.trim()) form.set('bpm', bpm.trim());
-    if (youtubeId) form.set('youtubeId', youtubeId);
-    for (const p of used) {
-      const field = p.role.kind === 'stem' ? `stem_${p.role.stem}` : p.role.kind;
-      form.append(field, p.file, p.file.name);
-    }
+    const meta = {
+      artist: artist.trim(),
+      title: title.trim(),
+      key: musicKey.trim() || undefined,
+      bpm: bpm.trim() || undefined,
+      youtubeId: youtubeId ?? undefined,
+    };
+    const files = used.map((p) => ({
+      field: (p.role.kind === 'stem' ? `stem_${p.role.stem}` : p.role.kind) as UploadField,
+      file: p.file,
+    }));
     setError(null);
     setProgress(0);
     try {
-      const { id } = await uploadSong(form, setProgress);
+      const { id } = await uploadSong(meta, files, (fraction) => setProgress(fraction));
       navigate(`/songs/${id}`);
     } catch (err) {
       setError((err as Error).message);

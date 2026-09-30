@@ -10,6 +10,8 @@ export const config = {
   port: Number(process.env.PORT ?? 3001),
   /** Só a própria máquina por padrão. No Cloud Run use HOST=0.0.0.0. */
   host: process.env.HOST ?? '127.0.0.1',
+  /** Quantos proxies confiáveis há na frente (Cloud Run: 1). 0 = nenhum (rodando local). */
+  trustProxy: Number(process.env.TRUST_PROXY ?? 0),
   /** Páginas que podem alterar dados pela API (proteção CSRF). */
   allowedOrigins: list(process.env.ALLOWED_ORIGINS, ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3001', 'http://127.0.0.1:3001']),
   /** Valores aceitos no cabeçalho Host (proteção contra DNS rebinding). */
@@ -28,6 +30,8 @@ export const config = {
      * identidade do serviço e isto pode ficar vazio.
      */
     signerServiceAccount:
-      process.env.GCP_SIGNER_SA ?? 'backing-tracks-api@backing-tracks-510200.iam.gserviceaccount.com',
+      process.env.GCP_SIGNER_SA === 'none'
+        ? ''
+        : (process.env.GCP_SIGNER_SA ?? 'backing-tracks-api@backing-tracks-510200.iam.gserviceaccount.com'),
   },
 };

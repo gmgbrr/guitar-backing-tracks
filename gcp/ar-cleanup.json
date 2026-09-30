@@ -1,0 +1,1 @@
+[{"name":"manter-3-recentes","action":{"type":"Keep"},"mostRecentVersions":{"keepCount":3}},{"name":"apagar-antigas","action":{"type":"Delete"},"condition":{"tagState":"any","olderThan":"1d"}}]

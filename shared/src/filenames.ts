@@ -26,6 +26,36 @@ export const UPLOAD_LIMITS = {
   maxDurationSec: 30 * 60,
 } as const;
 
+/** Campos de arquivo de um upload: um por stem, letra e capa. */
+export const UPLOAD_FIELDS = [...STEM_NAMES.map((s) => `stem_${s}` as const), 'lyrics', 'cover'] as const;
+export type UploadField = (typeof UPLOAD_FIELDS)[number];
+
+export const isUploadField = (v: unknown): v is UploadField =>
+  typeof v === 'string' && (UPLOAD_FIELDS as readonly string[]).includes(v);
+
+/** Tamanho máximo aceito para cada campo. */
+export function maxBytesFor(field: UploadField): number {
+  if (field === 'lyrics') return UPLOAD_LIMITS.lyricsMaxBytes;
+  if (field === 'cover') return UPLOAD_LIMITS.coverMaxBytes;
+  return UPLOAD_LIMITS.stemMaxBytes;
+}
+
+/** Pedido de upload: dados da música + quais arquivos serão enviados (conteúdo vai direto ao armazenamento). */
+export interface UploadRequest {
+  artist: string;
+  title: string;
+  key?: string;
+  bpm?: number | string;
+  youtubeId?: string;
+  files: { field: UploadField; size: number }[];
+}
+
+/** Resposta de POST /api/uploads: onde enviar cada arquivo (PUT). */
+export interface UploadSession {
+  uploadId: string;
+  targets: { field: UploadField; url: string; headers: Record<string, string> }[];
+}
+
 export const AUDIO_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'm4a'] as const;
 export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
 

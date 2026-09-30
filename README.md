@@ -87,3 +87,13 @@ npm run push-gcp -- <id>    # só uma música; --force faz o song.json local sob
 - Vídeo e metrônomo ajustados no app ficam no Firestore e têm prioridade sobre o `song.json` local no `push-gcp`.
 - CORS do bucket em [gcp/cors.json](gcp/cors.json); variáveis em [gcp/.env.gcp](gcp/.env.gcp) (só IDs, sem segredos).
 - Custo esperado: US$ 0 dentro da cota gratuita (Firestore 1 GiB; Cloud Storage 5 GB em us-east1 ≈ 140 músicas).
+
+## Deploy (Cloud Run)
+
+O app roda no Cloud Run em https://backing-tracks-251094340671.us-east1.run.app, com login pelo Google (IAP: só contas liberadas entram).
+
+- **Deploy contínuo:** cada push na `main` do GitHub dispara o Cloud Build, que executa [cloudbuild.yaml](cloudbuild.yaml): gera a imagem com os buildpacks do Google (sem Dockerfile: `npm ci`, `npm run build`, `npm start`) e publica no Cloud Run.
+- O serviço roda com a conta `backing-tracks-api` (só Firestore + este bucket), no máximo 1 instância, 0 quando ninguém usa (custo ~US$ 0).
+- Uploads vão direto do navegador ao bucket por links de envio assinados (tamanho máximo garantido pelo Google) e são validados pela API antes de virar música; envios abandonados são apagados em 1 dia ([gcp/lifecycle.json](gcp/lifecycle.json)).
+- Imagens antigas são apagadas automaticamente (mantém as 3 mais recentes).
+

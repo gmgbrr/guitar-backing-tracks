@@ -2,8 +2,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
-import multer from 'multer';
-import { UPLOAD_LIMITS, type MetronomeRecord, type SongDetail, type SongSummary, type VideoRecord } from '@backing-tracks/shared';
+import crypto from 'node:crypto';
+import {
+  isUploadField,
+  maxBytesFor,
+  type MetronomeRecord,
+  type SongDetail,
+  type SongSummary,
+  type UploadSession,
+  type VideoRecord,
+} from '@backing-tracks/shared';
 import { config } from './config.js';
 import { gcpClients } from './gcp.js';
 import { FirestoreSongRepository } from './repositories/FirestoreSongRepository.js';
@@ -22,9 +30,9 @@ import {
   writeLimiter,
 } from './security.js';
 import { GcsMediaStorage } from './storage/GcsMediaStorage.js';
-import { LocalMediaStorage } from './storage/LocalMediaStorage.js';
+import { LocalMediaStorage, UPLOAD_ID_RE } from './storage/LocalMediaStorage.js';
 import type { MediaStorage } from './storage/MediaStorage.js';
-import { UPLOAD_FILE_FIELDS, validateUpload, type IncomingFiles } from './upload.js';
+import { validateFileList, validateSongFields, validateUpload, type IncomingFiles } from './upload.js';
 
 const songsDir = path.join(config.dataDir, 'songs');
 
@@ -46,7 +54,8 @@ console.log(`Dados: ${config.storageDriver === 'gcp' ? `GCP (${config.gcp.projec
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', false);
+// No Cloud Run há um proxy do Google na frente: confia em 1 salto para obter o IP real (limites por IP).
+app.set('trust proxy', config.trustProxy);
 
 // ---------- proteções globais ----------
 app.use(hostGuard(config));
@@ -145,51 +154,90 @@ app.put(
 );
 
 // ---------- upload de música ----------
-const multipart = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: UPLOAD_LIMITS.stemMaxBytes,
-    files: UPLOAD_FILE_FIELDS.length,
-    fields: 8,
-    fieldSize: 1024,
-    fieldNameSize: 32,
-    parts: UPLOAD_FILE_FIELDS.length + 8,
-  },
-}).fields(UPLOAD_FILE_FIELDS);
-
-/** Um upload por vez: cada um pode ocupar ~250 MB de memória. */
-let uploadInProgress = false;
+// 1) POST /api/uploads            valida os dados e devolve links de envio (PUT) para cada arquivo
+// 2) o navegador envia cada arquivo direto para o armazenamento (no GCS: signed URL com tamanho máximo)
+// 3) POST /api/uploads/:id/complete lê o que chegou, valida o conteúdo real, move e cria a música
+// Assim a API nunca recebe os arquivos grandes na requisição (limite de 32 MB do Cloud Run).
 
 app.post(
-  '/api/songs',
+  '/api/uploads',
   uploadLimiter,
-  (req, res, next) => {
-    if (uploadInProgress) {
-      res.status(429).json({ error: 'Já existe um envio em andamento; aguarde terminar.' });
-      return;
-    }
-    uploadInProgress = true;
-    res.on('close', () => (uploadInProgress = false));
-    next();
-  },
-  multipart,
   asyncHandler(async (req, res) => {
-    const { record, files } = await validateUpload(req.body ?? {}, (req.files ?? {}) as IncomingFiles);
-    if (await songs.get(record.id)) throw new HttpError(409, 'Já existe uma música com esse artista e título.');
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const fields = validateSongFields(body);
+    const files = validateFileList(body.files);
+    if (await songs.get(fields.id)) throw new HttpError(409, 'Já existe uma música com esse artista e título.');
+    const uploadId = crypto.randomUUID();
+    const session: UploadSession = {
+      uploadId,
+      targets: await Promise.all(
+        files.map(async (f) => ({ field: f.field, ...(await media.createUploadTarget(uploadId, f.field, maxBytesFor(f.field))) })),
+      ),
+    };
+    res.status(201).json(session);
+  }),
+);
 
-    const written: string[] = [];
+// Só no modo local: recebe o PUT do navegador (no GCS o envio vai direto ao bucket).
+if (media instanceof LocalMediaStorage) {
+  const local = media;
+  app.put(
+    '/api/uploads/:uploadId/:field',
+    writeLimiter,
+    (req, _res, next) => {
+      const { uploadId, field } = req.params;
+      next(UPLOAD_ID_RE.test(uploadId) && isUploadField(field) ? undefined : new HttpError(404, 'Upload não encontrado'));
+    },
+    (req, res, next) =>
+      express.raw({ type: 'application/octet-stream', limit: maxBytesFor(req.params.field as never) })(req, res, next),
+    asyncHandler(async (req, res) => {
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw new HttpError(400, 'Arquivo vazio.');
+      await local.writeStaged(req.params.uploadId, req.params.field as never, req.body);
+      res.status(200).end();
+    }),
+  );
+}
+
+/** Uma finalização por vez: cada uma pode ocupar ~250 MB de memória. */
+let completing = false;
+
+app.post(
+  '/api/uploads/:uploadId/complete',
+  uploadLimiter,
+  asyncHandler(async (req, res) => {
+    const { uploadId } = req.params;
+    if (!UPLOAD_ID_RE.test(uploadId)) throw new HttpError(404, 'Upload não encontrado');
+    if (completing) throw new HttpError(429, 'Já existe um envio sendo finalizado; aguarde.');
+    completing = true;
     try {
-      for (const f of files) {
-        await media.put(record.id, f.name, f.data, f.contentType);
-        written.push(f.name);
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const declared = validateFileList(body.files);
+      const staged: IncomingFiles = {};
+      for (const { field } of declared) {
+        const data = await media.readStaged(uploadId, field, maxBytesFor(field));
+        if (!data) throw new HttpError(400, 'Algum arquivo não terminou de ser enviado; tente de novo.');
+        staged[field] = data;
       }
-      if (!(await songs.create(record))) throw new HttpError(409, 'Já existe uma música com esse artista e título.');
-    } catch (err) {
-      // desfaz só o que este envio gravou (nunca arquivos de outra música)
-      await media.remove(record.id, written).catch((e) => console.error('Falha ao desfazer upload:', e));
-      throw err;
+      const { record, files } = await validateUpload(body, staged);
+      if (await songs.get(record.id)) throw new HttpError(409, 'Já existe uma música com esse artista e título.');
+
+      const written: string[] = [];
+      try {
+        for (const f of files) {
+          await media.put(record.id, f.name, f.data, f.contentType);
+          written.push(f.name);
+        }
+        if (!(await songs.create(record))) throw new HttpError(409, 'Já existe uma música com esse artista e título.');
+      } catch (err) {
+        // desfaz só o que esta finalização gravou (nunca arquivos de outra música)
+        await media.remove(record.id, written).catch((e) => console.error('Falha ao desfazer upload:', e));
+        throw err;
+      }
+      res.status(201).json({ id: record.id });
+    } finally {
+      completing = false;
+      await media.clearStaged(uploadId).catch((e) => console.error('Falha ao limpar upload temporário:', e));
     }
-    res.status(201).json({ id: record.id });
   }),
 );
 
