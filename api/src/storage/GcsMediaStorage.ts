@@ -30,4 +30,22 @@ export class GcsMediaStorage implements MediaStorage {
     this.cache.set(key, { url, expires });
     return url;
   }
+
+  async put(songId: string, file: string, data: Buffer, contentType: string): Promise<void> {
+    const key = `${this.prefix}/${songId}/${file}`;
+    // ifGenerationMatch: 0 → só cria; nunca sobrescreve um arquivo existente.
+    await this.bucket.file(key).save(data, {
+      resumable: false,
+      contentType,
+      metadata: { cacheControl: 'private, max-age=86400' },
+      preconditionOpts: { ifGenerationMatch: 0 },
+    });
+    this.cache.delete(key);
+  }
+
+  async remove(songId: string, files: string[]): Promise<void> {
+    await Promise.all(
+      files.map((f) => this.bucket.file(`${this.prefix}/${songId}/${f}`).delete({ ignoreNotFound: true })),
+    );
+  }
 }

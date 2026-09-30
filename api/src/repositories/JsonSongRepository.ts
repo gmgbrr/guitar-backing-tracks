@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { SongRecord } from '@backing-tracks/shared';
-import type { SongRepository } from './SongRepository.js';
+import { isValidSongId, type SongRepository } from './SongRepository.js';
 
 /** Lê data/songs/<id>/song.json. */
 export class JsonSongRepository implements SongRepository {
@@ -21,12 +21,25 @@ export class JsonSongRepository implements SongRepository {
   }
 
   async get(id: string): Promise<SongRecord | undefined> {
-    if (!/^[a-z0-9-]+$/.test(id)) return undefined;
+    if (!isValidSongId(id)) return undefined;
     try {
       const raw = await fs.readFile(this.fileOf(id), 'utf8');
       return JSON.parse(raw) as SongRecord;
     } catch {
       return undefined;
+    }
+  }
+
+  async create(song: SongRecord): Promise<boolean> {
+    if (!isValidSongId(song.id)) throw new Error(`Id inválido: ${song.id}`);
+    await fs.mkdir(path.dirname(this.fileOf(song.id)), { recursive: true });
+    try {
+      // 'wx': falha se o arquivo já existir → nunca sobrescreve outra música
+      await fs.writeFile(this.fileOf(song.id), JSON.stringify(song, null, 2) + '\n', { flag: 'wx' });
+      return true;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
+      throw err;
     }
   }
 

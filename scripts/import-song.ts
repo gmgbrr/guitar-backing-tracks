@@ -15,11 +15,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SongRecord } from '../shared/src/index.js';
+import { parseArtistTitle, parseStemFilename, slugify, STEM_NAMES } from '../shared/src/filenames.js';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const songsDir = path.join(rootDir, 'data', 'songs');
-const STEM_ORDER = ['vocals', 'drums', 'bass', 'guitar', 'piano', 'other'];
-const STEM_RE = /^(?<prefix>.+)-(?<stem>vocals|drums|bass|guitar|piano|other)-(?<key>[A-G][#b]? (?:major|minor))-(?<bpm>\d+)bpm-\d+hz\.(?<ext>mp3|wav|flac|ogg|m4a)$/i;
+const STEM_ORDER: readonly string[] = STEM_NAMES;
 
 interface Group {
   artist: string;
@@ -27,25 +27,6 @@ interface Group {
   key?: string;
   bpm?: number;
   stems: { name: string; src: string; ext: string }[];
-}
-
-const slugify = (s: string) =>
-  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-/** Trechos " - <x>" que indicam versão/qualidade, não fazem parte do título. */
-const VERSION_SUFFIX = /^(?:(?:\d{4} )?remaster(?:ed)?(?: \d{4})?(?: version)?|live.*|radio edit|single version|album version|mono|stereo|explicit|official (?:audio|video)|\d+ ?kbps)$/i;
-
-function parseArtistTitle(prefix: string): { artist: string; title: string } {
-  const [artist, ...rest] = prefix.split(' - ');
-  // remove parênteses ("(Official Audio)", "(320 Kbps)", "(1)") e sufixos de versão ("- Remastered")
-  const title = rest
-    .join(' - ')
-    .replace(/\s*\([^)]*\)/g, '')
-    .split(/\s[-–](?:\s|$)/) // " - " no meio ou " -" solto no fim; hífens dentro de palavras ficam
-    .map((part) => part.trim())
-    .filter((part) => part && !VERSION_SUFFIX.test(part))
-    .join(' - ');
-  return { artist: artist.trim(), title: title || artist.trim() };
 }
 
 function probeDuration(file: string): number {
@@ -76,12 +57,11 @@ for (const dir of dirs) {
       coverFiles.set(slugify(cover.groups.base), full); // "<Título>" sozinho
       continue;
     }
-    const m = STEM_RE.exec(name);
-    if (!m?.groups) continue;
-    const { artist, title } = parseArtistTitle(m.groups.prefix);
-    const slug = slugify(`${artist} ${title}`);
-    const g = groups.get(slug) ?? { artist, title, key: m.groups.key, bpm: Number(m.groups.bpm), stems: [] };
-    g.stems.push({ name: m.groups.stem.toLowerCase(), src: full, ext: m.groups.ext.toLowerCase() });
+    const info = parseStemFilename(name);
+    if (!info) continue;
+    const slug = slugify(`${info.artist} ${info.title}`);
+    const g = groups.get(slug) ?? { artist: info.artist, title: info.title, key: info.key, bpm: info.bpm, stems: [] };
+    g.stems.push({ name: info.stem, src: full, ext: info.ext });
     groups.set(slug, g);
   }
 }

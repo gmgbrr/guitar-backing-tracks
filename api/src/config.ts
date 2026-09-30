@@ -3,8 +3,17 @@ import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+const list = (v: string | undefined, fallback: string[]) =>
+  v ? v.split(',').map((s) => s.trim()).filter(Boolean) : fallback;
+
 export const config = {
   port: Number(process.env.PORT ?? 3001),
+  /** Só a própria máquina por padrão. No Cloud Run use HOST=0.0.0.0. */
+  host: process.env.HOST ?? '127.0.0.1',
+  /** Páginas que podem alterar dados pela API (proteção CSRF). */
+  allowedOrigins: list(process.env.ALLOWED_ORIGINS, ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3001', 'http://127.0.0.1:3001']),
+  /** Valores aceitos no cabeçalho Host (proteção contra DNS rebinding). */
+  allowedHosts: list(process.env.ALLOWED_HOSTS, ['localhost', '127.0.0.1', '::1']),
   /** 'local' (data/ em disco) ou 'gcp' (Firestore + Cloud Storage). */
   storageDriver: process.env.STORAGE_DRIVER ?? 'local',
   dataDir: path.resolve(rootDir, process.env.DATA_DIR ?? 'data'),

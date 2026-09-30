@@ -19,6 +19,9 @@ export function SongList() {
     <main className="list-page">
       <header className="list-header">
         <h1>Backing Tracks</h1>
+        <Link to="/upload" className="add-song">
+          + Adicionar música
+        </Link>
         <input
           type="search"
           placeholder="Buscar música ou artista…"
@@ -31,7 +34,7 @@ export function SongList() {
       {!songs && !error && <p className="muted">Carregando…</p>}
       {songs?.length === 0 && (
         <p className="muted">
-          Nenhuma música ainda. Rode <code>npm run import -- &lt;pasta&gt;</code> para adicionar.
+          Nenhuma música ainda. <Link to="/upload">Adicione a primeira</Link>.
         </p>
       )}
 

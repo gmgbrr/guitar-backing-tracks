@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Player } from './pages/Player';
 import { SongList } from './pages/SongList';
+import { UploadSong } from './pages/UploadSong';
 import './styles.css';
 
 createRoot(document.getElementById('root')!).render(
@@ -11,6 +12,7 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<SongList />} />
         <Route path="/songs/:id" element={<Player />} />
+        <Route path="/upload" element={<UploadSong />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

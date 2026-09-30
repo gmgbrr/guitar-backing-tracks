@@ -20,7 +20,13 @@ Atalhos no player: **Espaço** play/pause, **← / →** ±5 s, **V** vídeo/let
 
 Fica no painel do mixer. Começa com o BPM da música; para alinhar com a gravação, toque a música e clique em **Alinhar no 1** (ou **B**) exatamente numa batida 1 do compasso, depois ajuste fino com **Início ±10 ms**. **Salvar** grava BPM, compasso e alinhamento no `song.json` da música.
 
-## Adicionar músicas
+## Adicionar músicas pelo app
+
+Na listagem, **+ Adicionar música** abre a tela de envio: arraste os stems, a letra `.lrc` e a capa. O app reconhece o papel de cada arquivo pelo nome (e preenche artista, título, tom e BPM quando os stems seguem o padrão abaixo); dá para corrigir cada um antes de enviar. A música vai direto para o Firestore e o Cloud Storage.
+
+Limites: stems até 40 MB cada (mp3, wav, flac, ogg, m4a; entre 5 s e 30 min, com durações parecidas), letra `.lrc` sincronizada em UTF-8 até 200 KB, capa JPG/PNG/WebP até 5 MB.
+
+## Adicionar músicas por linha de comando
 
 Coloque numa pasta os stems e a letra com estes nomes:
 
@@ -43,6 +49,15 @@ Para sincronizar o início, clique em **Ajustar sincronia**:
 3. clique em **Alinhar vídeo com a track**, dê play para conferir e **Salvar**.
 
 Também dá para ajustar o início direto (±0,1 s / ±1 s) ou usar **Vídeo começa agora**. O ajuste fica salvo no `song.json` (`video.offsetSec` = tempo da track em que o vídeo está no segundo 0). Vídeos cujo dono bloqueou a incorporação fora do YouTube não podem ser exibidos.
+
+## Segurança
+
+- A API escuta só em `127.0.0.1` e recusa `Host` de outros domínios (DNS rebinding).
+- Alterações (PUT/POST/DELETE) só são aceitas vindas das páginas do próprio app (`Origin`/`Referer`), bloqueando CSRF de outros sites.
+- Ids de música, JSON (máx. 10 KB) e todos os campos são validados; ids e nomes de arquivos gravados são gerados pelo servidor.
+- Uploads: tipo detectado pelo conteúdo (áudio lido de verdade, imagens por assinatura de bytes), tamanhos limitados, um envio por vez, 20 por hora; nunca sobrescrevem arquivos ou músicas existentes, e um envio que falha no meio é desfeito.
+- Limite de requisições, cabeçalhos de segurança (CSP etc.), erros sem detalhes internos e nenhuma falha assíncrona derruba o servidor.
+- Firestore: regras [gcp/firestore.rules](gcp/firestore.rules) negam todo acesso direto; só a API (conta de serviço) lê e grava. Bucket privado (sem assinatura → 403).
 
 ## Estrutura
 

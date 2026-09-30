@@ -54,3 +54,4 @@ export interface SongDetail extends Omit<SongRecord, 'stems' | 'lyricsFile' | 'c
   lyricsUrl?: string;
   coverUrl?: string;
 }
+export * from './filenames';
