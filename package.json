@@ -13,7 +13,9 @@
     "start": "npm run start -w api",
     "test": "vitest run",
     "typecheck": "tsc -p api --noEmit && tsc -p web --noEmit && tsc -p scripts --noEmit",
-    "import": "tsx scripts/import-song.ts"
+    "import": "tsx scripts/import-song.ts",
+    "push-gcp": "tsx scripts/push-gcp.ts",
+    "dev:gcp": "concurrently -n api,web -c blue,magenta \"npm run dev:gcp -w api\" \"npm run dev -w web\""
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

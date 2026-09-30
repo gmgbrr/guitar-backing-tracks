@@ -8,6 +8,7 @@ export interface SongRecord {
   durationSec: number;
   stems: StemRecord[];
   lyricsFile?: string;
+  coverFile?: string;
   metronome?: MetronomeRecord;
   video?: VideoRecord;
 }
@@ -44,10 +45,12 @@ export interface SongSummary {
   stemNames: string[];
   hasLyrics: boolean;
   hasVideo: boolean;
+  coverUrl?: string;
 }
 
 /** Detalhe retornado por GET /api/songs/:id, com URLs de mídia já resolvidas. */
-export interface SongDetail extends Omit<SongRecord, 'stems' | 'lyricsFile'> {
+export interface SongDetail extends Omit<SongRecord, 'stems' | 'lyricsFile' | 'coverFile'> {
   stems: { name: string; url: string }[];
   lyricsUrl?: string;
+  coverUrl?: string;
 }

@@ -26,9 +26,10 @@ Coloque numa pasta os stems e a letra com estes nomes:
 ```
 <Artista> - <Título>[ ...]-<vocals|drums|bass|guitar|piano|other>-<Tom>-<BPM>bpm-<Hz>hz.mp3
 <Artista> - <Título>.lrc          (opcional)
+<Título>-cover.jpg                (opcional; também aceita "<Artista> - <Título>.jpg", png ou webp)
 ```
 
-e rode `npm run import -- <pasta>`. Cada música vira `data/songs/<slug>/` com `song.json`, os stems e `lyrics.lrc`.
+e rode `npm run import -- <pasta>`. Cada música vira `data/songs/<slug>/` com `song.json`, os stems, `lyrics.lrc` e `cover.jpg`. Reimportar uma música preserva o vídeo e o metrônomo configurados no app.
 
 ## Vídeo com a tablatura (YouTube)
 
@@ -51,9 +52,23 @@ Também dá para ajustar o início direto (±0,1 s / ±1 s) ou usar **Vídeo com
 | `web/` | Vite + React. `src/audio/StemPlayer.ts` é o motor Web Audio (sources sincronizados → gain por stem → master) |
 | `scripts/import-song.ts` | Importador de arquivos |
 
-## Migração para o Google Cloud
+## Google Cloud
 
-1. **Arquivos** → Cloud Storage: suba `data/songs/<slug>/*` para `gs://<bucket>/songs/<slug>/`.
-2. **Metadados** → Firestore: cada `song.json` vira um documento na coleção `songs` (mesmo formato).
-3. Implemente `FirestoreSongRepository` e `GcsMediaStorage` (retornando signed URLs) e registre-os em `createAdapters()` de `api/src/index.ts` sob `STORAGE_DRIVER=gcp`. O frontend não muda.
-4. **App** → Cloud Run: `npm run build` e rode a API; ela já serve `web/dist` quando o build existe (um único container).
+Os dados também ficam no projeto `backing-tracks-510200` (região us-east1):
+
+| O quê | Onde |
+|---|---|
+| Dados de cada música (o `song.json`) | Firestore, coleção `songs`, documento `songs/<id>` |
+| Stems, letra e capa | Cloud Storage, bucket privado `backing-tracks-510200-media`, em `songs/<id>/<arquivo>` |
+
+```bash
+npm run push-gcp            # envia data/songs/ para a nuvem (só o que mudou)
+npm run push-gcp -- <id>    # só uma música; --force faz o song.json local sobrescrever vídeo/metrônomo da nuvem
+npm run dev:gcp             # roda o app lendo e gravando no Firestore/Cloud Storage
+```
+
+- O navegador baixa a mídia direto do bucket por **signed URLs** que valem até o fim do dia seguinte e se repetem durante o dia (o cache do navegador funciona e o tráfego fica baixo). Sem assinatura o bucket responde 403.
+- As URLs são assinadas pela conta de serviço `backing-tracks-api`; localmente a API usa o seu login (`gcloud auth application-default login`) e se passa por ela, sem chave baixada.
+- Vídeo e metrônomo ajustados no app (`dev:gcp`) ficam no Firestore e têm prioridade sobre o `song.json` local no `push-gcp`.
+- CORS do bucket em [gcp/cors.json](gcp/cors.json); variáveis em [gcp/.env.gcp](gcp/.env.gcp) (só IDs, sem segredos).
+- Custo esperado: US$ 0 dentro da cota gratuita (Firestore 1 GiB; Cloud Storage 5 GB em us-east1 ≈ 140 músicas).

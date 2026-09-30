@@ -111,6 +111,7 @@ export function Player() {
     <main className="player-page">
       <header className="player-header">
         <Link to="/" className="back">← Músicas</Link>
+        {song?.coverUrl && <img className="header-cover" src={song.coverUrl} alt="" />}
         {song && (
           <div className="title">
             <h1>{song.title}</h1>

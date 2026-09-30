@@ -5,6 +5,10 @@
  *
  * Nome esperado dos stems:  "<Artista> - <Título>[ qualquer coisa]-<stem>-<tom>-<bpm>bpm-<hz>hz.mp3"
  * Letra (opcional):         "<Artista> - <Título>.lrc"
+ * Capa (opcional):          "<Artista> - <Título>.jpg", "<Título>-cover.jpg" ou "<Artista> - <Título>-cover.jpg"
+ *                           (jpg, png ou webp)
+ *
+ * Reimportar uma música preserva o que foi configurado no app (vídeo, metrônomo) e a capa já existente.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -28,10 +32,19 @@ interface Group {
 const slugify = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+/** Trechos " - <x>" que indicam versão/qualidade, não fazem parte do título. */
+const VERSION_SUFFIX = /^(?:(?:\d{4} )?remaster(?:ed)?(?: \d{4})?(?: version)?|live.*|radio edit|single version|album version|mono|stereo|explicit|official (?:audio|video)|\d+ ?kbps)$/i;
+
 function parseArtistTitle(prefix: string): { artist: string; title: string } {
   const [artist, ...rest] = prefix.split(' - ');
-  // remove sufixos comuns: "(Official Audio)", "- (320 Kbps)" etc.
-  const title = rest.join(' - ').replace(/\s*[-–]?\s*\([^)]*\)/g, '').trim();
+  // remove parênteses ("(Official Audio)", "(320 Kbps)", "(1)") e sufixos de versão ("- Remastered")
+  const title = rest
+    .join(' - ')
+    .replace(/\s*\([^)]*\)/g, '')
+    .split(/\s[-–](?:\s|$)/) // " - " no meio ou " -" solto no fim; hífens dentro de palavras ficam
+    .map((part) => part.trim())
+    .filter((part) => part && !VERSION_SUFFIX.test(part))
+    .join(' - ');
   return { artist: artist.trim(), title: title || artist.trim() };
 }
 
@@ -45,6 +58,8 @@ if (dirs.length === 0) dirs.push(rootDir);
 
 const groups = new Map<string, Group>();
 const lrcFiles = new Map<string, string>(); // slug -> caminho
+const coverFiles = new Map<string, string>(); // slug do nome (sem "-cover") -> caminho
+const COVER_RE = /^(?<base>.+?)(?:[-_ ]cover)?\.(?<ext>jpe?g|png|webp)$/i;
 
 for (const dir of dirs) {
   for (const name of fs.readdirSync(dir)) {
@@ -52,6 +67,13 @@ for (const dir of dirs) {
     if (name.toLowerCase().endsWith('.lrc')) {
       const { artist, title } = parseArtistTitle(name.slice(0, -4));
       lrcFiles.set(slugify(`${artist} ${title}`), full);
+      continue;
+    }
+    const cover = COVER_RE.exec(name);
+    if (cover?.groups) {
+      const { artist, title } = parseArtistTitle(cover.groups.base);
+      coverFiles.set(slugify(`${artist} ${title}`), full); // "<Artista> - <Título>"
+      coverFiles.set(slugify(cover.groups.base), full); // "<Título>" sozinho
       continue;
     }
     const m = STEM_RE.exec(name);
@@ -87,7 +109,19 @@ for (const [slug, g] of groups) {
     fs.copyFileSync(lrc, path.join(dest, lyricsFile));
   }
 
+  const songFile = path.join(dest, 'song.json');
+  const existing: Partial<SongRecord> = fs.existsSync(songFile) ? JSON.parse(fs.readFileSync(songFile, 'utf8')) : {};
+
+  let coverFile = existing.coverFile;
+  const cover = coverFiles.get(slug) ?? coverFiles.get(slugify(g.title));
+  if (cover) {
+    if (coverFile) fs.rmSync(path.join(dest, coverFile), { force: true });
+    coverFile = `cover${path.extname(cover).toLowerCase().replace('.jpeg', '.jpg')}`;
+    fs.copyFileSync(cover, path.join(dest, coverFile));
+  }
+
   const record: SongRecord = {
+    ...existing, // preserva vídeo, metrônomo etc. configurados no app
     id: slug,
     title: g.title,
     artist: g.artist,
@@ -95,8 +129,10 @@ for (const [slug, g] of groups) {
     bpm: g.bpm,
     durationSec: probeDuration(g.stems[0].src),
     stems,
-    lyricsFile,
+    lyricsFile: lyricsFile ?? existing.lyricsFile,
+    coverFile,
   };
-  fs.writeFileSync(path.join(dest, 'song.json'), JSON.stringify(record, null, 2) + '\n');
-  console.log(`✓ ${g.artist} - ${g.title} → data/songs/${slug} (${stems.length} stems${lyricsFile ? ', letra' : ''})`);
+  fs.writeFileSync(songFile, JSON.stringify(record, null, 2) + '\n');
+  const extras = [lyricsFile && 'letra', cover && 'capa'].filter(Boolean).join(', ');
+  console.log(`✓ ${g.artist} - ${g.title} → data/songs/${slug} (${stems.length} stems${extras ? `, ${extras}` : ''})`);
 }

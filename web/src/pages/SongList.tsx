@@ -40,7 +40,7 @@ export function SongList() {
           <li key={s.id}>
             <Link to={`/songs/${s.id}`}>
               <div className="cover" aria-hidden>
-                {s.title.charAt(0)}
+                {s.coverUrl ? <img src={s.coverUrl} alt="" loading="lazy" /> : s.title.charAt(0)}
               </div>
               <div className="info">
                 <strong>{s.title}</strong>

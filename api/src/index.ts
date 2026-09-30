@@ -4,30 +4,38 @@ import cors from 'cors';
 import express from 'express';
 import type { MetronomeRecord, SongDetail, SongSummary, VideoRecord } from '@backing-tracks/shared';
 import { config } from './config.js';
+import { gcpClients } from './gcp.js';
+import { FirestoreSongRepository } from './repositories/FirestoreSongRepository.js';
 import { JsonSongRepository } from './repositories/JsonSongRepository.js';
 import type { SongRepository } from './repositories/SongRepository.js';
+import { GcsMediaStorage } from './storage/GcsMediaStorage.js';
 import { LocalMediaStorage } from './storage/LocalMediaStorage.js';
 import type { MediaStorage } from './storage/MediaStorage.js';
 
 const songsDir = path.join(config.dataDir, 'songs');
 
-function createAdapters(): { songs: SongRepository; media: MediaStorage } {
+async function createAdapters(): Promise<{ songs: SongRepository; media: MediaStorage }> {
   switch (config.storageDriver) {
     case 'local':
       return { songs: new JsonSongRepository(songsDir), media: new LocalMediaStorage(songsDir) };
+    case 'gcp': {
+      const { firestore, bucket } = await gcpClients();
+      return { songs: new FirestoreSongRepository(firestore), media: new GcsMediaStorage(bucket) };
+    }
     default:
       throw new Error(`STORAGE_DRIVER desconhecido: ${config.storageDriver}`);
   }
 }
 
-const { songs, media } = createAdapters();
+const { songs, media } = await createAdapters();
+console.log(`Dados: ${config.storageDriver === 'gcp' ? `GCP (${config.gcp.project})` : config.dataDir}`);
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.get('/api/songs', async (_req, res) => {
   const list = await songs.list();
-  const summaries: SongSummary[] = list.map((s) => ({
+  const summaries: SongSummary[] = await Promise.all(list.map(async (s) => ({
     id: s.id,
     title: s.title,
     artist: s.artist,
@@ -37,7 +45,8 @@ app.get('/api/songs', async (_req, res) => {
     stemNames: s.stems.map((st) => st.name),
     hasLyrics: Boolean(s.lyricsFile),
     hasVideo: Boolean(s.video),
-  }));
+    coverUrl: s.coverFile ? await media.getUrl(s.id, s.coverFile) : undefined,
+  })));
   res.json(summaries);
 });
 
@@ -47,13 +56,14 @@ app.get('/api/songs/:id', async (req, res) => {
     res.status(404).json({ error: 'Música não encontrada' });
     return;
   }
-  const { stems, lyricsFile, ...rest } = song;
+  const { stems, lyricsFile, coverFile, ...rest } = song;
   const detail: SongDetail = {
     ...rest,
     stems: await Promise.all(
       stems.map(async (st) => ({ name: st.name, url: await media.getUrl(song.id, st.file) })),
     ),
     lyricsUrl: lyricsFile ? await media.getUrl(song.id, lyricsFile) : undefined,
+    coverUrl: coverFile ? await media.getUrl(song.id, coverFile) : undefined,
   };
   res.json(detail);
 });
@@ -115,5 +125,5 @@ if (fs.existsSync(config.webDistDir)) {
 }
 
 app.listen(config.port, () => {
-  console.log(`API em http://localhost:${config.port} (dados: ${config.dataDir})`);
+  console.log(`API em http://localhost:${config.port}`);
 });
