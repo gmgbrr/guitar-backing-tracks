@@ -4,9 +4,9 @@
 
 substitutions:
   _REGION: us-east1
-  _SERVICE: backing-tracks
+  _SERVICE: stem
   _IMAGE: us-east1-docker.pkg.dev/${PROJECT_ID}/backing-tracks/app
-  _APP_HOST: backing-tracks-251094340671.us-east1.run.app
+  _APP_HOST: stem-251094340671.us-east1.run.app
 
 steps:
   - id: build

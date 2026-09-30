@@ -1,4 +1,4 @@
-# Configura o cliente OAuth próprio do IAP no serviço do Cloud Run.
+# Configura o cliente OAuth próprio do IAP para o projeto inteiro (vale para todo serviço protegido por IAP).
 # Necessário em projetos sem organização (conta @gmail.com): o IAP não tem cliente OAuth automático.
 #
 # Uso (no PowerShell, na raiz do projeto):  .\gcp\configure-iap-oauth.ps1
@@ -22,10 +22,10 @@ access_settings:
     client_id: $clientId
     client_secret: $secret
 "@ | Set-Content -Path $tmp -Encoding utf8
-  & $gcloud iap settings set $tmp --project=$project --resource-type=cloud-run --service=backing-tracks --region=us-east1 --quiet --format=none
+  & $gcloud iap settings set $tmp --project=$project --quiet --format=none
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao gravar as configurações do IAP.' }
 } finally {
   Remove-Item $tmp -Force  # o arquivo temporário com o segredo é apagado mesmo se der erro
 }
 
-Write-Host "`nPronto. Em 1-2 minutos, abra: https://backing-tracks-251094340671.us-east1.run.app" -ForegroundColor Green
+Write-Host "`nPronto. Em 1-2 minutos, abra: https://stem-251094340671.us-east1.run.app" -ForegroundColor Green

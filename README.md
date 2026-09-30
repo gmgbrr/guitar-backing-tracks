@@ -90,11 +90,11 @@ npm run push-gcp -- <id>    # só uma música; --force faz o song.json local sob
 
 ## Deploy (Cloud Run)
 
-O app roda no Cloud Run em https://backing-tracks-251094340671.us-east1.run.app, com login pelo Google (IAP: só contas liberadas entram).
+O app roda no Cloud Run em https://stem-251094340671.us-east1.run.app, com login pelo Google (IAP: só contas liberadas entram).
 
 - **Deploy contínuo:** cada push na `main` do GitHub dispara o Cloud Build, que executa [cloudbuild.yaml](cloudbuild.yaml): gera a imagem com os buildpacks do Google (sem Dockerfile: `npm ci`, `npm run build`, `npm start`) e publica no Cloud Run.
 - O serviço roda com a conta `backing-tracks-api` (só Firestore + este bucket), no máximo 1 instância, 0 quando ninguém usa (custo ~US$ 0).
 - Uploads vão direto do navegador ao bucket por links de envio assinados (tamanho máximo garantido pelo Google) e são validados pela API antes de virar música; envios abandonados são apagados em 1 dia ([gcp/lifecycle.json](gcp/lifecycle.json)).
 - Imagens antigas são apagadas automaticamente (mantém as 3 mais recentes).
-- **Login (IAP):** o projeto não pertence a uma organização, então o IAP usa um cliente OAuth próprio, criado uma vez no console (*Google Auth Platform*: app em modo Teste, só `gabrielmarinho0812@gmail.com` como usuário de teste; cliente *Aplicativo da Web* com o redirecionamento `https://iap.googleapis.com/v1/oauth/clientIds/<CLIENT_ID>:handleRedirect`). Depois, [gcp/configure-iap-oauth.ps1](gcp/configure-iap-oauth.ps1) grava o ID e o segredo no IAP (o segredo é digitado no terminal e não fica salvo). Para liberar outra conta: `gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=backing-tracks --region=us-east1 --member=user:<email> --role=roles/iap.httpsResourceAccessor` e adicioná-la como usuária de teste.
+- **Login (IAP):** o projeto não pertence a uma organização, então o IAP usa um cliente OAuth próprio, criado uma vez no console (*Google Auth Platform*: app em modo Teste, só `gabrielmarinho0812@gmail.com` como usuário de teste; cliente *Aplicativo da Web* com o redirecionamento `https://iap.googleapis.com/v1/oauth/clientIds/<CLIENT_ID>:handleRedirect`). Depois, [gcp/configure-iap-oauth.ps1](gcp/configure-iap-oauth.ps1) grava o ID e o segredo no IAP (o segredo é digitado no terminal e não fica salvo). Para liberar outra conta: `gcloud iap web add-iam-policy-binding --resource-type=cloud-run --service=stem --region=us-east1 --member=user:<email> --role=roles/iap.httpsResourceAccessor` e adicioná-la como usuária de teste.
 
