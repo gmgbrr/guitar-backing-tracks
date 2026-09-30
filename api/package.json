@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "dev:gcp": "tsx watch --env-file=../gcp/.env.gcp src/index.ts",
-    "start": "tsx src/index.ts"
+    "dev": "tsx watch --env-file=../gcp/.env.gcp src/index.ts",
+    "dev:local": "tsx watch src/index.ts",
+    "start": "tsx --env-file=../gcp/.env.gcp src/index.ts"
   },
   "dependencies": {
     "@backing-tracks/shared": "*",

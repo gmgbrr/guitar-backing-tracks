@@ -9,13 +9,13 @@
   ],
   "scripts": {
     "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:local": "concurrently -n api,web -c blue,magenta \"npm run dev:local -w api\" \"npm run dev -w web\"",
     "build": "npm run build -w web",
     "start": "npm run start -w api",
     "test": "vitest run",
     "typecheck": "tsc -p api --noEmit && tsc -p web --noEmit && tsc -p scripts --noEmit",
     "import": "tsx scripts/import-song.ts",
-    "push-gcp": "tsx scripts/push-gcp.ts",
-    "dev:gcp": "concurrently -n api,web -c blue,magenta \"npm run dev:gcp -w api\" \"npm run dev -w web\""
+    "push-gcp": "tsx scripts/push-gcp.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

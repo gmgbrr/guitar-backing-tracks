@@ -9,7 +9,8 @@ Player web com stems separados (voz, bateria, baixo, outros), volume individual 
 ```bash
 npm install
 npm run import            # organiza os arquivos soltos da raiz em data/songs/
-npm run dev               # API em :3001 + web em http://localhost:5173
+npm run dev               # API em :3001 + web em http://localhost:5173, dados no Google Cloud
+npm run dev:local         # mesmo app lendo data/ local (só se você tiver as músicas em disco)
 npm test                  # testes do parser LRC
 ```
 
@@ -29,7 +30,7 @@ Coloque numa pasta os stems e a letra com estes nomes:
 <Título>-cover.jpg                (opcional; também aceita "<Artista> - <Título>.jpg", png ou webp)
 ```
 
-e rode `npm run import -- <pasta>`. Cada música vira `data/songs/<slug>/` com `song.json`, os stems, `lyrics.lrc` e `cover.jpg`. Reimportar uma música preserva o vídeo e o metrônomo configurados no app.
+e rode `npm run import -- <pasta>` e depois `npm run push-gcp`. Depois de enviada, os arquivos locais da música podem ser apagados. Cada música vira `data/songs/<slug>/` com `song.json`, os stems, `lyrics.lrc` e `cover.jpg`. Reimportar uma música preserva o vídeo e o metrônomo configurados no app.
 
 ## Vídeo com a tablatura (YouTube)
 
@@ -54,7 +55,7 @@ Também dá para ajustar o início direto (±0,1 s / ±1 s) ou usar **Vídeo com
 
 ## Google Cloud
 
-Os dados também ficam no projeto `backing-tracks-510200` (região us-east1):
+Os dados ficam no projeto `backing-tracks-510200` (região us-east1):
 
 | O quê | Onde |
 |---|---|
@@ -64,11 +65,10 @@ Os dados também ficam no projeto `backing-tracks-510200` (região us-east1):
 ```bash
 npm run push-gcp            # envia data/songs/ para a nuvem (só o que mudou)
 npm run push-gcp -- <id>    # só uma música; --force faz o song.json local sobrescrever vídeo/metrônomo da nuvem
-npm run dev:gcp             # roda o app lendo e gravando no Firestore/Cloud Storage
 ```
 
 - O navegador baixa a mídia direto do bucket por **signed URLs** que valem até o fim do dia seguinte e se repetem durante o dia (o cache do navegador funciona e o tráfego fica baixo). Sem assinatura o bucket responde 403.
 - As URLs são assinadas pela conta de serviço `backing-tracks-api`; localmente a API usa o seu login (`gcloud auth application-default login`) e se passa por ela, sem chave baixada.
-- Vídeo e metrônomo ajustados no app (`dev:gcp`) ficam no Firestore e têm prioridade sobre o `song.json` local no `push-gcp`.
+- Vídeo e metrônomo ajustados no app ficam no Firestore e têm prioridade sobre o `song.json` local no `push-gcp`.
 - CORS do bucket em [gcp/cors.json](gcp/cors.json); variáveis em [gcp/.env.gcp](gcp/.env.gcp) (só IDs, sem segredos).
 - Custo esperado: US$ 0 dentro da cota gratuita (Firestore 1 GiB; Cloud Storage 5 GB em us-east1 ≈ 140 músicas).
