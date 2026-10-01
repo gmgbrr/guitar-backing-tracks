@@ -58,7 +58,7 @@ code { background: var(--panel-2); padding: 2px 6px; border-radius: 4px; }
 }
 
 /* ---------- Player ---------- */
-.player-page { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+.player-page { height: 100%; height: 100dvh; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .player-header { display: flex; align-items: center; gap: 24px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
 .back { color: var(--muted); white-space: nowrap; }
 .back:hover { color: var(--text); }
@@ -125,12 +125,6 @@ input[type='range']::-webkit-slider-thumb {
 }
 input[type='range']::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--text); border: 0; }
 
-@media (max-width: 800px) {
-  .player-body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-  .mixer { border-left: 0; border-top: 1px solid var(--border); max-height: 40vh; }
-  .lyrics p { font-size: 20px; }
-  .player-header, .player-footer { padding-left: 16px; padding-right: 16px; }
-}
 
 /* ---------- Painel principal: abas Letra | Tablatura ---------- */
 .main-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
@@ -211,9 +205,6 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 4p
 .video-sync-row .hint { font-size: 12px; }
 .video-sync-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
 
-@media (max-width: 800px) {
-  .video-view { padding-left: 16px; padding-right: 16px; }
-}
 
 /* ---------- Adicionar música ---------- */
 .add-song {
@@ -262,3 +253,110 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 4p
 .video-actions .youtube-link:hover, .video-actions .youtube-link:focus-visible { border-color: var(--accent); outline: none; }
 .youtube-link .yt-bg { fill: var(--accent); }
 .youtube-link .yt-play { fill: #111; }
+
+/* =====================================================================
+   Celular / telas estreitas
+   ===================================================================== */
+
+/* Toque: sem zoom acidental com toque duplo nos controles. */
+button, a, input, select, label { touch-action: manipulation; }
+
+/* Telas de toque: sliders e botões com área de toque confortável (≥ 40 px). */
+@media (pointer: coarse) {
+  input[type='range'] { height: 8px; }
+  input[type='range']::-webkit-slider-thumb { width: 22px; height: 22px; }
+  input[type='range']::-moz-range-thumb { width: 22px; height: 22px; }
+  .toggle { height: 40px; font-size: 14px; }
+  .channel { grid-template-columns: 64px minmax(0, 1fr) 40px 40px 40px; padding: 12px 0; }
+  .channel.master { grid-template-columns: 64px minmax(0, 1fr) 40px 88px; }
+  .stepper button, .metro-row .align { height: 40px; min-width: 40px; }
+  .metro-row select, .stepper input { min-height: 40px; }
+  .switch { width: 48px; height: 28px; }
+  .switch span::after { width: 22px; height: 22px; }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  .video-actions button, .video-actions .youtube-link,
+  .video-sync button, .video-link-row button, .view-tabs button { min-height: 40px; }
+  .upload-files select, .upload-fields input { min-height: 42px; }
+}
+
+@media (max-width: 800px) {
+  /* ---- player: cabeçalho compacto ---- */
+  .player-header { gap: 12px; padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
+  .back { font-size: 14px; }
+  .header-cover { width: 36px; height: 36px; flex-shrink: 0; }
+  .title { min-width: 0; }
+  .title h1, .title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title h1 { font-size: 16px; }
+  .title span { font-size: 12px; }
+
+  /* ---- player: uma aba por vez (Vídeo | Letra | Mixer) ocupando a tela ---- */
+  .player-body { display: flex; flex-direction: column; min-height: 0; }
+  .main-panel { flex: 1; }
+  .player-body.view-mixer .main-panel { flex: none; }
+  .player-body:not(.view-mixer) .mixer { display: none; }
+  .player-body.view-mixer .mixer { flex: 1; min-height: 0; border: 0; padding: 12px 16px 16px; }
+  .player-body.view-mixer .mixer > header h2 { display: none; }
+  .view-tabs { padding: 8px 12px 0; }
+  .view-tabs button { flex: 1; max-width: 140px; }
+
+  /* ---- letra ---- */
+  .lyrics { padding: 0 16px; }
+  .lyrics p { font-size: 20px; padding: 8px 0; }
+  .lyrics p.active { transform: scale(1.03); }
+
+  /* ---- vídeo: 16:9 fixo, barra e painel de sincronia que quebram linha ---- */
+  .video-view { padding: 8px 12px 12px; overflow-y: auto; }
+  .video-frame { flex: none; width: 100%; aspect-ratio: 16 / 9; }
+  .video-toolbar { flex-direction: column; align-items: stretch; gap: 8px; font-size: 12px; }
+  .video-actions { flex-wrap: wrap; }
+  .video-actions button { flex: 1; white-space: nowrap; }
+  .video-sync { padding: 10px 12px; }
+  .video-sync-row .label { width: 100%; }
+  .video-sync-row input[type='range'] { flex-basis: 100%; order: 10; }
+  .video-sync-actions { flex-wrap: wrap; }
+  .video-link-row { flex-wrap: wrap; }
+  .video-link-row input { flex-basis: 100%; }
+
+  /* ---- metrônomo ---- */
+  .metro-row { flex-wrap: wrap; }
+  .metro-row .align { margin-left: 0; flex: 1; }
+
+  /* ---- barra de transporte fixa embaixo, respeitando a barra de gestos ---- */
+  .player-footer { padding: 8px 12px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  .seekbar { gap: 8px; }
+  .transport { gap: 8px; margin-top: 6px; }
+  .transport button { min-width: 44px; padding: 0 10px; }
+  .transport .play { width: 56px; height: 56px; }
+}
+
+@media (max-width: 600px) {
+  /* ---- lista ---- */
+  .list-page { padding: 20px 12px; padding-top: max(20px, env(safe-area-inset-top)); }
+  .list-header { gap: 12px; margin-bottom: 16px; }
+  .list-header h1 { font-size: 24px; }
+  .list-header input { order: 3; flex-basis: 100%; max-width: none; min-width: 0; }
+  .song-list a { gap: 12px; padding: 10px 12px; }
+  .song-list .cover { width: 48px; height: 48px; }
+  .info strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ---- upload: tabela vira cartões ---- */
+  .upload-page { padding: 20px 12px 32px; }
+  .upload-header { flex-direction: column; gap: 4px; }
+  .upload-header h1 { font-size: 22px; }
+  .dropzone { padding: 24px 12px; }
+  .upload-files thead { display: none; }
+  .upload-files, .upload-files tbody { display: block; }
+  .upload-files tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; align-items: center;
+    padding: 10px 0; border-top: 1px solid var(--border);
+  }
+  .upload-files td { padding: 0; border: 0; }
+  .upload-files .name { max-width: none; grid-column: 1; }
+  .upload-files .size { display: none; }
+  .upload-files td:nth-child(3) { grid-column: 1; grid-row: 2; }
+  .upload-files td:nth-child(4) { grid-column: 2; grid-row: 1 / span 2; }
+  .upload-actions { flex-direction: column; align-items: stretch; }
+  .upload-actions .primary { width: 100%; }
+  .upload-progress { flex: none; }
+}

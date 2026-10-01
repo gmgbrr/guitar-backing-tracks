@@ -51,6 +51,9 @@ export class StemPlayer {
 
   constructor() {
     this.master.connect(this.ctx.destination);
+    // iOS: sem isto o Web Audio fica mudo com a chave de silencioso ligada (Safari 16.4+).
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'playback';
   }
 
   async load(stems: { name: string; url: string }[], onProgress?: (loaded: number, total: number) => void) {

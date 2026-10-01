@@ -10,10 +10,12 @@ import { StemMixer } from '../components/StemMixer';
 import { Transport } from '../components/Transport';
 import { VideoView } from '../components/VideoView';
 import { parseLrc, type LyricLine } from '../lyrics/parseLrc';
+import { COMPACT_QUERY, useMediaQuery } from '../useMediaQuery';
 
 const KEY_SKIP_SECONDS = 5;
 
-type View = 'lyrics' | 'video';
+/** 'mixer' só existe como aba no layout de celular; no desktop o mixer fica sempre ao lado. */
+type View = 'lyrics' | 'video' | 'mixer';
 
 const defaultMetronome = (s: SongDetail): MetronomeRecord =>
   s.metronome ?? { bpm: s.bpm ?? 120, offsetSec: 0, beatsPerBar: 4 };
@@ -28,6 +30,12 @@ export function Player() {
   const [savedMetronome, setSavedMetronome] = useState<MetronomeRecord | null>(null);
   const [allSongs, setAllSongs] = useState<SongSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const compact = useMediaQuery(COMPACT_QUERY);
+
+  // Ao sair do layout de celular (girar/redimensionar), a aba Mixer deixa de existir.
+  useEffect(() => {
+    if (!compact && view === 'mixer') setView(video ? 'video' : 'lyrics');
+  }, [compact, view, video]);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +82,7 @@ export function Player() {
       if (target.tagName === 'BUTTON') target.blur();
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.code === 'KeyV') {
-        setView((v) => (v === 'lyrics' ? 'video' : 'lyrics'));
+        setView((v) => (v === 'video' ? 'lyrics' : 'video'));
       } else if (e.code === 'KeyM') {
         player.updateMetronome({ enabled: !player.getSnapshot().metronome.enabled });
       } else if (e.code === 'KeyB') {
@@ -124,7 +132,7 @@ export function Player() {
         )}
       </header>
 
-      <div className="player-body">
+      <div className={`player-body view-${view}`}>
         {load.status === 'loading' ? (
           <div className="loading">
             Carregando stems… {load.total > 0 && `${load.loaded}/${load.total}`}
@@ -140,6 +148,11 @@ export function Player() {
               <button className={view === 'lyrics' ? 'on' : ''} onClick={() => setView('lyrics')} title="Atalho: V">
                 Letra
               </button>
+              {compact && (
+                <button className={view === 'mixer' ? 'on' : ''} onClick={() => setView('mixer')}>
+                  Mixer
+                </button>
+              )}
             </nav>
             {/* O vídeo fica montado (só escondido) para não recarregar nem perder a sincronia. */}
             <div className={`view-pane ${view === 'video' ? '' : 'hidden'}`}>
