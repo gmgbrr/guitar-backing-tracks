@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import {
   isUploadField,
   maxBytesFor,
+  tuningOf,
   type MetronomeRecord,
   type SongDetail,
   type SongSummary,
@@ -89,6 +90,7 @@ app.get(
         hasLyrics: Boolean(s.lyricsFile),
         hasVideo: Boolean(s.video),
         coverUrl: s.coverFile ? await media.getUrl(s.id, s.coverFile) : undefined,
+        tuning: tuningOf(s),
       })),
     );
     res.json(summaries);
@@ -104,6 +106,7 @@ app.get(
     const { stems, lyricsFile, coverFile, ...rest } = song;
     const detail: SongDetail = {
       ...rest,
+      tuning: tuningOf(song),
       stems: await Promise.all(stems.map(async (st) => ({ name: st.name, url: await media.getUrl(song.id, st.file) }))),
       lyricsUrl: lyricsFile ? await media.getUrl(song.id, lyricsFile) : undefined,
       coverUrl: coverFile ? await media.getUrl(song.id, coverFile) : undefined,

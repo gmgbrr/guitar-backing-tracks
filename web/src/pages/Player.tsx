@@ -1,4 +1,4 @@
-import type { MetronomeRecord, SongDetail, SongSummary, VideoRecord } from '@backing-tracks/shared';
+import { tuningLabel, type MetronomeRecord, type SongDetail, type SongSummary, type VideoRecord } from '@backing-tracks/shared';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fetchSong, fetchSongs, fetchText } from '../api';
@@ -127,6 +127,7 @@ export function Player() {
               {song.artist}
               {song.key && ` · ${song.key}`}
               {song.bpm && ` · ${song.bpm} BPM`}
+              {` · Afinação ${tuningLabel(song.tuning)}`}
             </span>
           </div>
         )}

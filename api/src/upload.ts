@@ -2,12 +2,15 @@ import { parseBuffer } from 'music-metadata';
 import {
   isUploadField,
   maxBytesFor,
+  normalizeTuning,
+  STANDARD_TUNING,
   songId,
   STEM_LABELS,
   STEM_NAMES,
   UPLOAD_LIMITS,
   type SongRecord,
   type StemName,
+  type Tuning,
   type UploadField,
 } from '@backing-tracks/shared';
 import { HttpError } from './security.js';
@@ -117,6 +120,7 @@ export interface SongFields {
   key?: string;
   bpm?: number;
   youtubeId?: string;
+  tuning: Tuning;
 }
 
 /** Valida os dados digitados da música e gera o id (slug). */
@@ -142,9 +146,17 @@ export function validateSongFields(body: Record<string, unknown>): SongFields {
     youtubeId = body.youtubeId;
   }
 
+  // Afinação: ausente = padrão; se enviada, precisa ter 6 notas válidas.
+  let tuning = STANDARD_TUNING;
+  if (body.tuning !== undefined && body.tuning !== null) {
+    const t = normalizeTuning(body.tuning);
+    if (!t) throw bad('Afinação inválida: informe a nota de cada uma das 6 cordas.');
+    tuning = t;
+  }
+
   const id = songId(artist, title);
   if (!isValidSongId(id)) throw bad('Artista e título precisam conter letras ou números.');
-  return { id, artist, title, key, bpm, youtubeId };
+  return { id, artist, title, key, bpm, youtubeId, tuning };
 }
 
 /** Valida a lista de arquivos declarada no pedido de upload (antes do envio). */
@@ -173,7 +185,7 @@ const fieldLabel = (f: UploadField) =>
  * Tudo que vai para o banco/bucket (id, nomes, tipos, duração) é derivado aqui no servidor.
  */
 export async function validateUpload(body: Record<string, unknown>, files: IncomingFiles): Promise<ValidatedUpload> {
-  const { id, artist, title, key, bpm, youtubeId } = validateSongFields(body);
+  const { id, artist, title, key, bpm, youtubeId, tuning } = validateSongFields(body);
 
   const out: ValidatedUpload['files'] = [];
   const stems: SongRecord['stems'] = [];
@@ -222,6 +234,7 @@ export async function validateUpload(body: Record<string, unknown>, files: Incom
     lyricsFile,
     coverFile,
     video: youtubeId ? { youtubeId, offsetSec: 0 } : undefined,
+    tuning,
   };
   // remove campos vazios (o Firestore não aceita undefined e o JSON fica mais limpo)
   for (const k of Object.keys(record) as (keyof SongRecord)[]) if (record[k] === undefined) delete record[k];

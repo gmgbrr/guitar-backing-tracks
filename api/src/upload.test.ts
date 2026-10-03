@@ -85,6 +85,7 @@ describe('validateUpload', () => {
       lyricsFile: 'lyrics.lrc',
       coverFile: 'cover.png', // tipo real (PNG), não o nome enviado (.jpg)
       video: { youtubeId: 'B2R3WZXzsNA', offsetSec: 0 },
+      tuning: ['E', 'A', 'D', 'G', 'B', 'E'], // sem afinação informada = padrão
     });
     expect(out.map((f) => [f.name, f.contentType])).toEqual([
       ['vocals.wav', 'audio/wav'],
@@ -134,5 +135,18 @@ describe('validateFileList (pedido de upload)', () => {
     expect(() => validateFileList([{ field: 'cover', size: 10 }])).toThrow(/pelo menos um stem/);
     expect(() => validateFileList('x')).toThrow(/inválida/);
     expect(() => validateFileList([])).toThrow(/inválida/);
+  });
+});
+
+describe('afinação no upload', () => {
+  const base = { artist: 'Banda', title: 'Afinada' };
+  it('customizada: normaliza bemóis', async () => {
+    const { record } = await validateUpload({ ...base, tuning: ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb'] }, { stem_bass: wav(6) });
+    expect(record.tuning).toEqual(['D#', 'G#', 'C#', 'F#', 'A#', 'D#']);
+  });
+  it('rejeita afinação incompleta, nota inválida ou formato errado', async () => {
+    await expect(validateUpload({ ...base, tuning: ['E', 'A', 'D'] }, { stem_bass: wav(6) })).rejects.toThrow(/Afinação/);
+    await expect(validateUpload({ ...base, tuning: ['E', 'A', 'D', 'G', 'B', 'H'] }, { stem_bass: wav(6) })).rejects.toThrow(/Afinação/);
+    await expect(validateUpload({ ...base, tuning: 'E A D G B E' }, { stem_bass: wav(6) })).rejects.toThrow(/Afinação/);
   });
 });

@@ -254,6 +254,21 @@ kbd { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 4p
 .youtube-link .yt-bg { fill: var(--accent); }
 .youtube-link .yt-play { fill: #111; }
 
+/* ---------- Afinação (tela de adicionar música) ---------- */
+.tuning-picker { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px 14px; margin: 0; display: grid; gap: 12px; }
+.tuning-picker legend { padding: 0 6px; font-size: 13px; color: var(--muted); }
+.tuning-mode { display: flex; gap: 20px; flex-wrap: wrap; }
+.tuning-mode label { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; cursor: pointer; }
+.tuning-mode input { accent-color: var(--accent); width: 18px; height: 18px; }
+.tuning-preset { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.tuning-strings { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tuning-strings label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); text-align: center; }
+.tuning-picker select {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 6px; font: inherit; width: 100%;
+}
+.tuning-strings select { text-align: center; font-weight: 600; }
+.tuning-tag { color: var(--accent); }
+
 /* =====================================================================
    Celular / telas estreitas
    ===================================================================== */
@@ -359,4 +374,8 @@ button, a, input, select, label { touch-action: manipulation; }
   .upload-actions { flex-direction: column; align-items: stretch; }
   .upload-actions .primary { width: 100%; }
   .upload-progress { flex: none; }
+}
+
+@media (max-width: 600px) {
+  .tuning-strings { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

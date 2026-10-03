@@ -7,6 +7,7 @@ Ferramenta para estudar música com faixas separadas: player web com stems (voz,
 - **Player de stems:** todas as faixas tocam sincronizadas; cada uma tem volume, mudo e solo, além do volume geral. Play/pause, avançar/voltar e barra de posição.
 - **Letra sincronizada:** arquivos `.lrc` rolam junto com a música, com a linha atual em destaque; clicar numa linha leva a música até ela.
 - **Vídeo com tablatura:** um vídeo do YouTube é exibido mudo e sem controles, acompanhando a música. O início do vídeo pode ser alinhado com a faixa, e um botão abre o vídeo original no ponto atual.
+- **Afinação:** cada música guarda a afinação da guitarra (padrão ou customizada, com a nota de cada corda e atalhos como Drop D, meio tom abaixo, Open G), exibida no player e na lista.
 - **Metrônomo:** BPM, compasso e alinhamento da batida 1 ajustáveis e salvos por música, com clique acentuado no primeiro tempo.
 - **Adicionar músicas:** pela própria interface (arrastar stems, letra e capa) ou por linha de comando; o app reconhece o papel de cada arquivo pelo nome e preenche artista, título, tom e BPM quando possível.
 - **Atalhos:** Espaço (play/pause), ← / → (±5 s), V (vídeo/letra), M (metrônomo), B (alinhar metrônomo).

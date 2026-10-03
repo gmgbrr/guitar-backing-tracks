@@ -3,14 +3,17 @@ import {
   parseArtistTitle,
   parseStemFilename,
   STEM_LABELS,
+  STANDARD_TUNING,
   STEM_NAMES,
   UPLOAD_LIMITS,
   type FileRole,
+  type Tuning,
   type UploadField,
 } from '@backing-tracks/shared';
 import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { uploadSong } from '../api';
+import { TuningPicker } from '../components/TuningPicker';
 import { parseYouTubeId } from '../video/youtube';
 
 interface PickedFile {
@@ -52,6 +55,8 @@ export function UploadSong() {
   const [musicKey, setMusicKey] = useState('');
   const [bpm, setBpm] = useState('');
   const [youtube, setYoutube] = useState('');
+  const [customTuning, setCustomTuning] = useState(false);
+  const [tuning, setTuning] = useState<Tuning>(STANDARD_TUNING);
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +127,7 @@ export function UploadSong() {
       key: musicKey.trim() || undefined,
       bpm: bpm.trim() || undefined,
       youtubeId: youtubeId ?? undefined,
+      tuning: customTuning ? tuning : STANDARD_TUNING,
     };
     const files = used.map((p) => ({
       field: (p.role.kind === 'stem' ? `stem_${p.role.stem}` : p.role.kind) as UploadField,
@@ -239,6 +245,17 @@ export function UploadSong() {
             BPM
             <input type="number" min={20} max={300} step="0.1" value={bpm} onChange={(e) => setBpm(e.target.value)} />
           </label>
+          <div className="wide">
+            <TuningPicker
+              custom={customTuning}
+              tuning={tuning}
+              disabled={progress !== null}
+              onChange={(custom, t) => {
+                setCustomTuning(custom);
+                setTuning(t);
+              }}
+            />
+          </div>
           <label className="wide">
             Vídeo do YouTube (opcional)
             <input type="url" value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" />

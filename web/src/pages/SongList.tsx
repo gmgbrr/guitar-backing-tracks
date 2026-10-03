@@ -1,4 +1,4 @@
-import type { SongSummary } from '@backing-tracks/shared';
+import { isStandardTuning, tuningLabel, type SongSummary } from '@backing-tracks/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchSongs, formatTime } from '../api';
@@ -52,6 +52,7 @@ export function SongList() {
               <div className="tags">
                 {s.key && <span className="tag">{s.key}</span>}
                 {s.bpm && <span className="tag">{s.bpm} BPM</span>}
+                {!isStandardTuning(s.tuning) && <span className="tag tuning-tag">{tuningLabel(s.tuning)}</span>}
                 <span className="tag">{s.stemNames.length} stems</span>
                 {s.hasLyrics && <span className="tag">letra</span>}
               </div>

@@ -47,6 +47,8 @@ export interface UploadRequest {
   key?: string;
   bpm?: number | string;
   youtubeId?: string;
+  /** 6ª → 1ª corda; ausente = padrão. */
+  tuning?: string[];
   files: { field: UploadField; size: number }[];
 }
 
